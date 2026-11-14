@@ -1,0 +1,96 @@
+{
+  "bio_rad_t100": {
+    "manufacturer": "Bio-Rad",
+    "model": "T100 Thermal Cycler",
+    "size_xyz_m": [
+      0.26,
+      0.47,
+      0.23
+    ],
+    "capacity": "96 x 0.2 mL / one 96-well PCR plate",
+    "source": "https://www.bio-rad.com/sites/default/files/2021-08/10000145577.pdf",
+    "representation": "procedural approximation; articulated lid; recessed plate bed; no thermal physics",
+    "selection": "--instruments procedural only"
+  },
+  "eppendorf_5425": {
+    "manufacturer": "Eppendorf",
+    "model": "Centrifuge 5425",
+    "size_xyz_m": [
+      0.24,
+      0.39,
+      0.24
+    ],
+    "capacity": "24 x 1.5/2.0 mL",
+    "source": "https://www.eppendorf.com/ar-en/Products/Centrifugation/Centrifuges/Centrifuge-5425-5425R-p-PF-934144",
+    "representation": "procedural approximation; articulated lid; opposite vertical insertion slots; simplified rotor; no fluid separation",
+    "selection": "--instruments procedural only"
+  },
+  "vortex_genie_2": {
+    "manufacturer": "Scientific Industries",
+    "model": "Vortex-Genie 2",
+    "size_xyz_m": [
+      0.122,
+      0.165,
+      0.165
+    ],
+    "source": "https://www.scientificindustries.com/products/vortex-genie-2",
+    "representation": "procedural approximation; contact and dwell task; no fluid dynamics"
+  },
+  "ur7e": {
+    "manufacturer": "Universal Robots",
+    "model": "UR7e",
+    "reach_m": 0.85,
+    "source": "https://www.universal-robots.com/manuals/EN/HTML/SW10_10/Content/prod-usr-man/complianceUR7e/H_g5_sections/appendix_g5/tech_spec_data_7e.htm",
+    "description_source": "https://github.com/UniversalRobots/Universal_Robots_ROS2_Description/tree/0eb1a861f7772fceb38510d90fa2f98ec668070c/config/ur7e",
+    "note": "Uses upstream ur7e parameters; upstream itself reuses ur5e meshes. Not an alias of the UR5e configuration."
+  },
+  "consumables": {
+    "items": [
+      "1.5 mL capped sample tube",
+      "1.5 mL capped balance tube",
+      "two 6-slot tube racks",
+      "96-well PCR plate",
+      "100 mL beaker"
+    ],
+    "representation": "generic geometry, nominal dimensions; not manufacturer CAD; plate includes a narrow grippable tab because 2F-85 opening is smaller than an SBS plate's 85.48 mm width"
+  },
+  "vortex_mixer_genie_2": {
+    "manufacturer": "Scientific Industries",
+    "model": "Vortex-Genie 2",
+    "size_xyz_m": [
+      0.12217812,
+      0.17684481663086943,
+      0.16109498
+    ],
+    "dimension_basis": "Measured closed assembly mesh bounds, not independently verified vendor specifications",
+    "source": "../atombridge/model/instrument/vortex_mixer_genie_2.xml",
+    "selection": "default --instruments atombridge",
+    "representation": "Reconstructed textured meshes; primitive collisions and contact-duration mixing; no fluid physics"
+  },
+  "thermal_cycler_biorad_c1000": {
+    "manufacturer": "Bio-Rad",
+    "model": "C1000 Thermal Cycler",
+    "size_xyz_m": [
+      0.3305373,
+      0.48036730000000005,
+      0.33737688590835957
+    ],
+    "dimension_basis": "Measured closed assembly mesh bounds, not independently verified vendor specifications",
+    "source": "../atombridge/model/instrument/thermal_cycler_biorad_c1000.xml",
+    "selection": "default --instruments atombridge",
+    "representation": "Reconstructed textured meshes, articulated lid and pressure knob; open plate cavity and robot grasp handle; angle-based tightening and contact start; no thermal physics"
+  },
+  "centrifuge_eppendorf_5430": {
+    "manufacturer": "Eppendorf",
+    "model": "Centrifuge 5430",
+    "size_xyz_m": [
+      0.33999840000000003,
+      0.43309321,
+      0.23577616351232256
+    ],
+    "dimension_basis": "Measured closed assembly mesh bounds, not independently verified vendor specifications",
+    "source": "../atombridge/model/instrument/centrifuge_eppendorf_5430.xml",
+    "selection": "default --instruments atombridge",
+    "representation": "Reconstructed textured meshes and measured lid hinge; primitive collision approximation; secondary joints frozen; no thermal/fluid/spin physics"
+  }
+}

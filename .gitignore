@@ -1,0 +1,56 @@
+# Local Python environments
+.venv/
+.venv-*/
+
+# Python bytecode, package metadata, and tool caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pytype/
+.pyre/
+.hypothesis/
+.tox/
+.nox/
+.cache/
+.ipynb_checkpoints/
+
+# Test coverage reports
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Logs, including rotated logs beside custom dataset paths
+*.log
+*.log.*
+logs/
+
+# Downloaded assets, generated data, and local runtime state
+.reference/
+assets/robots/
+assets/upstream/
+assets/instruments/
+assets/labware/
+assets/generated/
+outputs/
+datasets/
+.wsl/
+*.wsl
+
+# Build artifacts
+build/
+dist/
+
+# Temporary files and operating-system metadata
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini

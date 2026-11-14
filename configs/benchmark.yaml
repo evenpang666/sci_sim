@@ -1,0 +1,45 @@
+# Human-readable benchmark defaults. The CLI is authoritative in v0.
+# This file documents a protocol, it is not implicitly loaded by the CLI.
+version: 0.1.0
+runtime:
+  platform: linux
+  python: '3.12'
+  physics: physx_cpu
+  rendering: sapien_vulkan
+  num_envs_per_process: 1
+robot:
+  default: ur7e
+  choices: [ur7e, ur5e, franka, xarm6]
+  gripper: robotiq_2f85
+  arms_per_station: 2
+  mounting: independent_cabinet_cylindrical_t
+  vertical_and_horizontal_tube_diameter_m: 0.18
+  horizontal_tube_end_cuts_deg: 45
+  horizontal_tube_center_height_m: 1.43
+  collision_mesh_mount_offsets_m: {ur7e: 0, ur5e: 0, franka: 0.0000335, xarm6: 0.000533}
+  base_positions_m: [[-0.245, -0.74, 1.43], [0.245, -0.74, 1.43]]
+  base_axis: outward_and_45_degrees_down
+instruments:
+  default: atombridge
+  models: [vortex_mixer_genie_2, thermal_cycler_biorad_c1000, centrifuge_eppendorf_5430]
+tasks:
+  - SciSim-MixTransfer-v0
+  - SciSim-ThermalCycler-v0
+  - SciSim-Centrifuge-v0
+cameras:
+  names: [frontcam, sidecam, left_wristcam, right_wristcam]
+  modality: rgbd
+  width: 640
+  height: 480
+collection:
+  control_hz: 20
+  simulation_hz: 240
+  horizon_steps: 5000
+  planner: MPlib_RRTConnect_and_screw
+  scheduling: sequential_dual_arm
+  fixture_xy_jitter_m: 0.018
+  object_rotation_randomization: false
+  successful_episodes_only: true
+  attempts_logged: true
+  depth_unit: mm
+  split_seed_offsets: {train: 0, validation: 1000000000, test: 2000000000}

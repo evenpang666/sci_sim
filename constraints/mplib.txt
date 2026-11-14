@@ -1,0 +1,4 @@
+# ManiSkill 3.0.1 pins MPlib 0.1.1 for its bundled example experts.
+# Sci-Sim uses its own expert and the 0.2.1 FCLObject/SapienPlanningWorld API.
+# This explicit override is necessary for the Linux environment resolver.
+mplib==0.2.1

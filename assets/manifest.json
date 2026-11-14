@@ -1,0 +1,42 @@
+{
+  "robot_sources": {
+    "ur_description": {
+      "url": "https://github.com/UniversalRobots/Universal_Robots_ROS2_Description/archive/0eb1a861f7772fceb38510d90fa2f98ec668070c.zip",
+      "sha256": "85e14ce2273373af3f522d197be776b1d9528fa286a638cb778e1c71bbb256cf"
+    },
+    "xarm6": {
+      "url": "https://github.com/haosulab/ManiSkill-XArm6/archive/refs/tags/v0.1.1.zip",
+      "sha256": "39937dd015a4c8cadb6328633207056f4ab123d480bd137fb79732dc4e29f836"
+    },
+    "panda": {
+      "source": "mani_skill==3.0.1 packaged panda_v2"
+    }
+  },
+  "models": {
+    "ur7e": {
+      "sha256": "1e8f744deea75b1af8e80f026b9687fdfdad2bbd414e5442a788180651109e0a",
+      "flange": "tool0",
+      "tcp": "eef",
+      "gripper": "Robotiq 2F-85"
+    },
+    "ur5e": {
+      "sha256": "1d1dcdd75f6bd2e916e06fbfcedf886af5b4c4cc99d1ae1609d18f1750a28249",
+      "flange": "tool0",
+      "tcp": "eef",
+      "gripper": "Robotiq 2F-85"
+    },
+    "xarm6": {
+      "sha256": "4ae6cd49957b47f8c84c4b3cd302fe5cb53b39c4c0bed0d9548b12ba59547178",
+      "flange": "link6",
+      "tcp": "eef",
+      "gripper": "Robotiq 2F-85"
+    },
+    "franka": {
+      "sha256": "44b0df87288cf3614cbc0cf32b15d8ec5cc2a41154547efbedc8680b3865d54a",
+      "flange": "panda_link8",
+      "tcp": "eef",
+      "gripper": "Robotiq 2F-85"
+    }
+  },
+  "ur_revision": "0eb1a861f7772fceb38510d90fa2f98ec668070c"
+}
