@@ -5,12 +5,12 @@ from mplib import Pose
 from mplib.collision_detection import fcl
 
 
-def collision_object(component, name):
+def collision_object(component, name, box_margin=0.0):
     shapes, poses = [], []
     for shape in component.collision_shapes:
         pose = Pose(p=shape.local_pose.p, q=shape.local_pose.q)
         if isinstance(shape, physx.PhysxCollisionShapeBox):
-            geometry = fcl.Box(side=shape.half_size * 2)
+            geometry = fcl.Box(side=(shape.half_size + box_margin) * 2)
         elif isinstance(shape, physx.PhysxCollisionShapeConvexMesh):
             geometry = fcl.Convex(vertices=shape.vertices * shape.scale, faces=shape.triangles)
         elif isinstance(shape, physx.PhysxCollisionShapeTriangleMesh):

@@ -1,8 +1,12 @@
 # Sci-Sim：双臂实验室 ManiSkill benchmark
 
-面向实验室具身操作的 ManiSkill 工程原型：三张实验桌、每桌独立柜式双臂架台、基于本地 AtomBridge 资产重建的仪器与耗材、四路 RGB-D 和基于 MPlib 的示范采集。已实现混匀转移、热循环仪和离心机三个基本操作流程。
+面向实验室具身操作的 ManiSkill 工程原型：五张实验桌、每桌独立柜式双臂架台、基于本地 AtomBridge 资产重建的仪器与耗材、四路 RGB-D 和基于 MPlib 的示范采集。包含混匀转移、热循环仪、离心机、清洗玻片和旋涂五个操作流程；清洗与旋涂场景按用户 GIF 程序化建模。
 
 2026-11-14：默认 UR7e + 2F-85 的三个任务在种子 42/43 下均已从 reset 完成实际规划与接触操作；24 项回归检查通过，并采集、回读了一条 424 帧的成功 LeRobot 示范。有限回合检查不代表大规模随机化成功率。见 [基本任务说明](docs/BASIC_TASKS.md) 和 [验证记录](docs/STATUS.md)。
+
+2026-11-15：清洗玻片与旋涂均已通过 seed 42/43 完整操作；当时 42 项回归检查通过，五桌十臂二十路相机总览已验证。
+
+2026-11-16：旋涂场景同桌接入闪蒸，正方形玻片依次完成旋涂与转移闪蒸。最终 seed 42/43 完整回合通过，50 项回归检查通过；视频与验证记录见 [旋涂与闪蒸说明](docs/SPIN_COATING.md)。
 
 ## 场景和机器人
 
@@ -11,6 +15,8 @@
 | 混匀并转移离心管 | `SciSim-MixTransfer-v0` | Vortex-Genie 2；夹持试管接触混匀头 2 秒，再放入目标架并释放 |
 | 操作热循环仪 | `SciSim-ThermalCycler-v0` | Bio-Rad C1000；开盖、放 PCR 板、关盖、旋紧旋钮、接触屏幕启动按钮、完成抽象计时 |
 | 操作离心机 | `SciSim-Centrifuge-v0` | Eppendorf 5430；开盖、放样品管和配平管到对置孔位、关盖、启动 |
+| 旋涂与闪蒸 | `SciSim-SpinCoating-v0` | 开盖、放玻片、吸褐色液体、滴一滴、归还移液器、关盖、按键旋转；停转后开两盖、转移正方形玻片、关闪蒸盖、按键闪蒸 |
+| 清洗玻片与入干燥箱 | `SciSim-SlideCleaning-v0` | 玻片槽入透明烧杯、烧杯入超声清洗槽、按键完成清洗、烧杯返回桌面、打开干燥箱、杯槽一起入箱、关门 |
 
 默认 **UR7e + Robotiq 2F-85**，可切换 `ur5e`、`franka`（Panda）、`xarm6`；四种机械臂均装配同一 2F-85。UR7e 使用 Universal Robots 官方 `config/ur7e`，官方该配置复用 UR5e 外观网格，不是把 UR5e 类改名。
 
@@ -18,7 +24,7 @@
 
 四种机械臂各自的左右初始关节角由 MPlib 在新安装姿态下离线求解，见 `resources/mount_homes.json`。frontcam 位于架台顶部前方、朝向桌面，避免立柱遮挡工作区。
 
-`--layout lab` 是三桌六臂总览；`--layout single` 是单桌双臂任务。总览有每桌四路、共十二路相机，采集使用单桌四路：`frontcam`、`sidecam`、`left_wristcam`、`right_wristcam`。默认 640 × 480，20 Hz，理想渲染深度；不模拟 RealSense 的噪声、遮挡孔洞或主动红外物理。
+`--layout lab` 是五桌十臂总览；`--layout single` 是单桌双臂任务。总览有每桌四路、共二十路相机，采集使用单桌四路：`frontcam`、`sidecam`、`left_wristcam`、`right_wristcam`。默认 640 × 480，20 Hz，理想渲染深度；不模拟 RealSense 的噪声、遮挡孔洞或主动红外物理。
 
 ## Linux 安装
 
@@ -72,6 +78,8 @@ sci-sim view --task thermal_cycler --layout single --robot franka
 sci-sim demo --task mix_transfer --seed 42
 sci-sim demo --task thermal_cycler --seed 42
 sci-sim demo --task centrifuge --seed 42
+sci-sim demo --task slide_cleaning --seed 42
+sci-sim demo --task spin_coating --seed 42
 
 sci-sim collect --task mix_transfer --robot ur7e \
   --episodes 10 --max-attempts 100 --seed 42 --split train \
@@ -115,10 +123,14 @@ LeRobot 加载器将存储的 uint16 深度转换为 float32 张量，数值仍�
 
 当前完整任务验证限于默认 UR7e 和记录中的随机种子；其他机械臂已验证场景构造与初始保持，尚未验证这些完整操作策略。正式发布 benchmark 数据集前，需要在目标 Linux GPU 上扩大随机种子覆盖、统计全部尝试的成功率，并校准任务代理与实物的差异。
 
+清洗玻片场景的烧杯和超声槽默认预装水，透明水面仅作视觉表达，清洗使用 `run_seconds` 抽象计时，不模拟流体、声场或去污效果。五片 25×75 mm 玻片固定在带提杆的玻片槽中；玻片槽和烧杯是两个独立动态刚体，嵌套搬运依靠重力及容器碰撞。烧杯增加外侧夹持耳以适配 2F-85。场景和相机采用支持透明材质的 `default` shader；透明物体的深度仍是理想渲染结果。详见 [清洗玻片说明](docs/SLIDE_CLEANING.md)。
+
 ```bash
 pytest -m 'not integration'
 SCI_SIM_INTEGRATION=1 pytest -m integration
 ```
+
+旋涂场景包含透明翻盖、圆形内腔、电机驱动托盘、独立玻片与移液器、移液器架和褐色液体烧杯。吸液/单滴转移通过针尖位置和连续停留时间抽象实现，旋转采用演示速度，不求解液体铺展或膜厚。同桌新增带观察窗翻盖与多孔托盘外观的闪蒸仪，旋涂后继续转移同一玻片并启动闪蒸；闪蒸使用默认 2 s 计时模型。详见 [旋涂说明](docs/SPIN_COATING.md)。
 
 ## 来源
 

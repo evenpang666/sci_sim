@@ -92,5 +92,62 @@
     "source": "../atombridge/model/instrument/centrifuge_eppendorf_5430.xml",
     "selection": "default --instruments atombridge",
     "representation": "Reconstructed textured meshes and measured lid hinge; primitive collision approximation; secondary joints frozen; no thermal/fluid/spin physics"
+  },
+  "ultrasonic_slide_cleaner": {
+    "manufacturer": null,
+    "model": "Generic open ultrasonic bath",
+    "size_xyz_m": [
+      0.28,
+      0.28,
+      0.18
+    ],
+    "source": "User-provided slide-cleaning GIF",
+    "selection": "slide_cleaning task with either instruments setting",
+    "representation": "Procedural approximate open tank with real start-button contact; prefilled visual water; timed cleaning without acoustic/fluid/chemical simulation",
+    "labware": {
+      "beaker": "Transparent 90 mm diameter, 115 mm high cup with exterior robot grasp lug",
+      "slide_rack": "Removable carrier with lifting stem and five fixed 25 x 75 mm slides",
+      "dynamics": "Beaker and rack are separate dynamic rigid bodies; nested support is contact-based"
+    }
+  },
+  "spin_coater": {
+    "manufacturer": null,
+    "model": "Generic hinged-lid spin coater",
+    "size_xyz_m": [
+      0.3,
+      0.32,
+      0.19
+    ],
+    "source": "User-provided spin-coating GIF",
+    "selection": "spin_coating task with either instruments setting",
+    "representation": "Procedural transparent hinged lid; contact-operated button; motor-driven friction chuck; 25 x 25 x 2 mm square slide",
+    "liquid_model": "Prefilled brown solution, one dose, tip immersion/dispense dwell, decorative droplet and coating; no CFD or film thickness",
+    "spin_speed_rad_s": 6.0
+  },
+  "flash_evaporator": {
+    "manufacturer": null,
+    "model": "Generic hinged flash-evaporation chamber",
+    "size_xyz_m": [
+      0.28,
+      0.28,
+      0.19
+    ],
+    "source": "User-provided flash-evaporation GIF",
+    "selection": "Same-table second instrument in spin_coating task",
+    "representation": "Blue base, perforation visuals on continuous collision tray, hinged transparent window lid, contact-operated start button and amber running indicator",
+    "process_model": "Timed solvent flash-evaporation abstraction; no pressure, heat-transfer, fluid, crystallization or optical-flash solver"
+  },
+  "slide_drying_cabinet": {
+    "manufacturer": null,
+    "model": "Generic front-opening drying cabinet",
+    "size_xyz_m": [
+      0.38,
+      0.36,
+      0.52
+    ],
+    "source": "User-provided drying-cabinet GIF",
+    "selection": "Same-table second instrument in slide_cleaning task",
+    "representation": "Blue cabinet, transparent window, vertical hinged door, orange gasket visuals and load-bearing shelf",
+    "process_model": "Load cleaned beaker containing slide rack and close door; no heating, vacuum or evaporation is started"
   }
 }

@@ -1,4 +1,4 @@
-"""ManiSkill environments: three independent tasks, optionally in a shared three-table lab."""
+"""ManiSkill environments: independent tasks, optionally in a shared multi-table lab."""
 import math
 import platform
 import numpy as np
@@ -57,6 +57,13 @@ class LabEnv(BaseEnv):
             kwargs.setdefault("render_backend", "cpu")
         kwargs["sim_backend"] = "cpu"
         kwargs["num_envs"] = 1
+        # The minimal shader renders alpha glass/water dark; the default raster
+        # shader supports transparency for this task and for the combined lab.
+        if self.task_name in ('slide_cleaning', 'spin_coating') or self.lab_config.layout == 'lab':
+            for name in ('sensor_configs', 'human_render_camera_configs'):
+                configs = dict(kwargs.get(name) or {})
+                configs.setdefault('shader_pack', 'default')
+                kwargs[name] = configs
         super().__init__(*args, robot_uids=tuple([uid] * (2 * len(self.station_tasks))), **kwargs)
 
     @property
@@ -73,7 +80,12 @@ class LabEnv(BaseEnv):
         super()._load_agent(options, poses)
 
     def _load_scene(self, options):
-        build_ground(self.scene, floor_width=12, floor_length=8, xy_origin=(2, 0),
+        # build_ground's floor_length spans world X. Include every station
+        # in the visible floor as well as in its infinite collision plane.
+        lab_span = (len(self.station_tasks) - 1) * STATION_SPACING
+        floor_length = max(8, math.ceil(lab_span + 4))
+        floor_center = (lab_span / 2, 0) if self.lab_config.layout == 'lab' else (2, 0)
+        build_ground(self.scene, floor_width=12, floor_length=floor_length, xy_origin=floor_center,
                      texture_square_len=1)
         self.stations = [build_station(self.scene, task, origin, f"station{i}_", self.lab_config.instruments)
                          for i, (task, origin) in enumerate(zip(self.station_tasks, self.origins))]
@@ -124,7 +136,8 @@ class LabEnv(BaseEnv):
 
     def _initialize_episode(self, env_idx, options):
         self.task_state = TaskState(self.task_name, self.lab_config.mix_seconds,
-                                   self.lab_config.run_seconds)
+                                   self.lab_config.run_seconds,
+                                   flash_required=self.lab_config.flash_seconds)
         for agent in self.agent.agents:
             agent.reset_home()
         # ManiSkill seeds this generator in reset(seed=...). Use a local seed in the manifest.
@@ -152,6 +165,14 @@ class LabEnv(BaseEnv):
 
     def target_position(self, name):
         s = self.station
+        if self.task_name == 'spin_coating' and name == 'pipette':
+            from .spin_coating import PIPETTE_HOME
+            return s.world(np.array(s.layout['target_rack']) + PIPETTE_HOME)
+        if self.task_name == 'slide_cleaning':
+            from .slide_drying import LOAD_LOCAL
+            from .slide_cleaning import BEAKER_FLOOR
+            target = s.dryer.instrument_point(LOAD_LOCAL)
+            return target + ([0, 0, BEAKER_FLOOR] if name == 'slide_rack' else [0, 0, 0])
         if name in s.target_local:
             return s.instrument_point(s.target_local[name])
         if self.task_name == "mix_transfer":
@@ -190,7 +211,13 @@ class LabEnv(BaseEnv):
         facts = Facts(grasped=any(held), released=not any(held), stable=stable,
                       dropped=any(xyz(obj)[2] < TABLE_TOP - .04 for obj in objs),
                       robot_collision=collision)
-        if self.task_name == "mix_transfer":
+        if self.task_name == 'spin_coating':
+            from .spin_coating import measure_spin_facts
+            measure_spin_facts(self, facts)
+        elif self.task_name == 'slide_cleaning':
+            from .slide_cleaning import measure_cleaning_facts
+            measure_cleaning_facts(self, facts)
+        elif self.task_name == "mix_transfer":
             sample = s.objects["sample"]
             mix_point = s.mixer_local if s.mixer_local is not None else [0, 0, .189]
             facts.on_mixer = (self.close_to(sample, s.instrument_point(mix_point), .012, .009)
@@ -214,6 +241,11 @@ class LabEnv(BaseEnv):
 
     def _after_control_step(self):
         self.task_state.update(self.measure_facts(), self.control_timestep)
+        if self.task_name == "spin_coating":
+            from .spin_coating import update_visuals
+            self.station.spin_joint.set_drive_velocity_target(
+                6.0 if self.task_state.running and not self.task_state.failed else 0.0)
+            update_visuals(self.station, self.task_state)
 
     def evaluate(self):
         state = self.task_state
@@ -238,3 +270,13 @@ class ThermalCyclerEnv(LabEnv):
 @register_env(TASK_IDS["centrifuge"], max_episode_steps=5000)
 class CentrifugeEnv(LabEnv):
     task_name = "centrifuge"
+
+
+@register_env(TASK_IDS['slide_cleaning'], max_episode_steps=8000)
+class SlideCleaningEnv(LabEnv):
+    task_name = 'slide_cleaning'
+
+
+@register_env(TASK_IDS["spin_coating"], max_episode_steps=8000)
+class SpinCoatingEnv(LabEnv):
+    task_name = "spin_coating"

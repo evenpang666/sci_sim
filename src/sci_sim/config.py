@@ -7,11 +7,15 @@ TASK_IDS = {
     "mix_transfer": "SciSim-MixTransfer-v0",
     "thermal_cycler": "SciSim-ThermalCycler-v0",
     "centrifuge": "SciSim-Centrifuge-v0",
+    "slide_cleaning": "SciSim-SlideCleaning-v0",
+    "spin_coating": "SciSim-SpinCoating-v0",
 }
 INSTRUCTIONS = {
+    "spin_coating": "Open the spin coater, load a glass slide, aspirate brown solution with the pipette, dispense one drop, return the pipette, close the lid and spin; after stopping, reopen the coater, open the flash evaporator, transfer the slide, close the evaporator and start flash evaporation.",
     "mix_transfer": "Pick the sample tube, vortex mix it, then place it in the destination rack.",
     "thermal_cycler": "Open the thermal cycler, insert the PCR plate, close the lid, tighten the knob and press start on the screen.",
     "centrifuge": "Open the centrifuge, load sample and balance tubes into opposite slots, close and start.",
+    "slide_cleaning": "Put the slide rack into the water-filled beaker, place the beaker in the ultrasonic bath, press start, return the beaker to the table, then open the drying cabinet, place the cleaned beaker with its slide rack inside and close the cabinet.",
 }
 ROBOTS = ("ur7e", "ur5e", "franka", "xarm6")
 CAMERAS = ("frontcam", "sidecam", "left_wristcam", "right_wristcam")
@@ -71,9 +75,10 @@ class LabConfig:
     fps: int = 20
     sim_freq: int = 240
     randomize: bool = True
-    max_steps: int = 5000
+    max_steps: int = 8000
     mix_seconds: float = 2.0
     run_seconds: float = 2.0
+    flash_seconds: float = 2.0
     instruments: str = 'atombridge'
 
     def __post_init__(self):
@@ -87,7 +92,7 @@ class LabConfig:
             raise ValueError("image sizes, frequencies and horizon must be positive")
         if self.sim_freq % self.fps:
             raise ValueError("sim_freq must be divisible by fps")
-        if min(self.mix_seconds, self.run_seconds) <= 0:
+        if min(self.mix_seconds, self.run_seconds, self.flash_seconds) <= 0:
             raise ValueError("task dwell times must be positive")
 
     def to_dict(self):
@@ -118,7 +123,16 @@ def sample_layout(rng: np.random.Generator, task: str, randomize: bool = True,
     sizes = {"source_rack": (0.16, 0.10), "target_rack": (0.16, 0.10),
              "instrument": {"mix_transfer": (0.122, 0.165),
                             "thermal_cycler": (0.26, 0.47),
-                            "centrifuge": (0.24, 0.39)}[task], "beaker": (0.08, 0.08)}
+                            "centrifuge": (0.24, 0.39),
+                            "slide_cleaning": (0.28, 0.28), "spin_coating": (.30, .32)}[task], "beaker": (0.08, 0.08)}
+    if task == 'slide_cleaning':
+        nominal = {'source_rack': (-.38, -.18), 'target_rack': (.0, -.37),
+                   'beaker': (-.16, -.18), 'instrument': (.08, -.16), 'dryer': (.45, .10)}
+        sizes.update(source_rack=(.09, .09), target_rack=(.15, .10), beaker=(.15, .10), dryer=(.38, .36))
+    if task == 'spin_coating':
+        nominal = {'source_rack': (-.34, -.23), 'target_rack': (-.34, .13),
+                   'beaker': (-.34, -.055), 'instrument': (.08, -.15), 'flash': (.46, -.15)}
+        sizes.update(source_rack=(.10, .07), target_rack=(.09, .12), flash=(.28, .28))
     if instrument_size is not None:
         sizes['instrument'] = instrument_size[:2]
     # Front of a T100 is at y=-0.115; side racks stay clear of its body.
@@ -138,4 +152,3 @@ def sample_layout(rng: np.random.Generator, task: str, randomize: bool = True,
         if valid:
             return {k: [float(x), float(y), TABLE_TOP] for k, (x, y) in poses.items()}
     raise RuntimeError("Could not sample a non-overlapping scene")
-

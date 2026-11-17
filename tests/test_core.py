@@ -17,7 +17,9 @@ def test_layout_reproducible_and_varies(task):
     assert a != c
     for seed in range(100):
         result = sample_layout(np.random.default_rng(seed), task)
-        assert set(result) == {"source_rack", "target_rack", "instrument", "beaker"}
+        assert set(result) == ({"source_rack", "target_rack", "instrument", "beaker"}
+                               | ({"flash"} if task == "spin_coating" else set())
+                               | ({"dryer"} if task == "slide_cleaning" else set()))
         assert all(abs(p[0]) < .7 and abs(p[1]) < .4 and p[2] == .76
                    for p in result.values())
 

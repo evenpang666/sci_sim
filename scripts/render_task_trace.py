@@ -15,9 +15,14 @@ parser.add_argument('trace', type=Path)
 args = parser.parse_args()
 with args.trace.open('rb') as f:
     trace = pickle.load(f)  # Only load snapshots generated locally by validate_expert.py.
+camera_pose = (sapien_utils.look_at([.85, .65, 1.65], [.08, -.10, 1.0])
+               if trace['task'] == 'spin_coating' else
+               sapien_utils.look_at([1.4, -1.2, 1.9], [.15, -.06, 1.0])
+               if trace['task'] == 'slide_cleaning' else
+               sapien_utils.look_at([.90, .55, 1.80], [0, -.12, 1.05]))
 env = gym.make(TASK_IDS[trace['task']], obs_mode='state_dict', render_mode='rgb_array',
     human_render_camera_configs={'overview': {'width': 960, 'height': 720,
-        'pose': sapien_utils.look_at([.90, .55, 1.80], [0, -.12, 1.05])}})
+        'pose': camera_pose, **({'fov': .90} if trace['task']=='slide_cleaning' else {})}})
 env.reset(seed=trace['seed'])
 base = env.unwrapped
 writer = iio.get_writer(args.trace.with_suffix('.mp4'), fps=5, quality=7,

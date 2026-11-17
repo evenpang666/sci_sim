@@ -175,6 +175,18 @@ class Station:
     target_local: dict = field(default_factory=dict)
     knob: object = None
     knob_frame: object = None
+    beaker_water: bool = False
+    bath_water: bool = False
+    rotor: object = None
+    spin_joint: object = None
+    spin_joint_index: int = 0
+    drop_visual: object = None
+    coating_visual: object = None
+    dose_visual: object = None
+    puddle_visual: object = None
+    dryer: object = None
+    flash: object = None
+    status_light: object = None
 
     def world(self, p):
         return self.origin + np.asarray(p)
@@ -215,6 +227,14 @@ class Station:
 
     def set_layout(self, layout):
         self.layout = layout
+        if self.task == 'spin_coating':
+            from .spin_coating import reset_station
+            reset_station(self, layout)
+            return
+        if self.task == 'slide_cleaning':
+            from .slide_cleaning import reset_station
+            reset_station(self, layout)
+            return
         for name, obj in self.fixtures.items():
             obj.set_pose(sapien.Pose(self.world(layout[name])))
         if self.task == "mix_transfer":
@@ -243,6 +263,12 @@ def build_station(scene, task, origin, prefix, instruments='atombridge') -> Stat
     s = Station(task, np.asarray(origin), prefix)
     s.furniture = build_table_and_stand(scene, origin, prefix)
     initial = sapien.Pose(s.world([0, 0, TABLE_TOP]))
+    if task == 'spin_coating':
+        from .spin_coating import build_spin_coating
+        return build_spin_coating(scene, s, initial)
+    if task == 'slide_cleaning':
+        from .slide_cleaning import build_slide_cleaning
+        return build_slide_cleaning(scene, s, initial)
     def plate_nest(b):
         box(b, (.040, .022, .020), (0, 0, .020), ORANGE)
         for x in (-.060, .060):

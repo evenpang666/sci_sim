@@ -44,7 +44,8 @@ def collect(task, root, repo_id, episodes=10, max_attempts=None, seed=0, split="
                               "gripper_actuator_force_limit": 1.0},
             "expert_observation": "Privileged simulator object poses and contacts for geometric planning and insertion feedback; not a vision-only policy",
             "instrument_assets": (json.loads((asset_root() / 'instruments/manifest.json').read_text())
-                                  if config.instruments == 'atombridge' else None),
+                                  if config.instruments == 'atombridge' and task not in ('slide_cleaning', 'spin_coating')
+                                  else None),
             "mount": {"design": "cabinet_cylindrical_t", "axis_outward_down_deg": 45,
                       "end_faces": "45_degree_cuts", "crossbar_center_z_m": STAND_CROSSBAR_Z,
                       "tube_diameter_m": STAND_TUBE_DIAMETER,

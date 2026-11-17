@@ -22,10 +22,17 @@ robot:
 instruments:
   default: atombridge
   models: [vortex_mixer_genie_2, thermal_cycler_biorad_c1000, centrifuge_eppendorf_5430]
+  slide_cleaning: procedural_open_ultrasonic_bath_with_prefilled_water
+  slide_drying: same_table_front_opening_cabinet_for_nested_beaker_storage
+  spin_coating: procedural_hinged_spin_coater_with_brown_solution
+  flash_evaporation: same_table_hinged_window_chamber_with_timed_process
+  flash_seconds: 2.0
 tasks:
   - SciSim-MixTransfer-v0
   - SciSim-ThermalCycler-v0
   - SciSim-Centrifuge-v0
+  - SciSim-SlideCleaning-v0
+  - SciSim-SpinCoating-v0
 cameras:
   names: [frontcam, sidecam, left_wristcam, right_wristcam]
   modality: rgbd
@@ -34,7 +41,7 @@ cameras:
 collection:
   control_hz: 20
   simulation_hz: 240
-  horizon_steps: 5000
+  horizon_steps: 8000
   planner: MPlib_RRTConnect_and_screw
   scheduling: sequential_dual_arm
   fixture_xy_jitter_m: 0.018

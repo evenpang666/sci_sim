@@ -112,6 +112,7 @@ class DualArmExpert:
         self.targets = []
         self.grippers = [self.OPEN, self.OPEN]
         self.payloads = [None, None]
+        self.carried_contents = [[], []]
         self.payload_contacts = [[], []]
         self.steps = 0
         mplib.set_global_seed(seed)
@@ -163,7 +164,7 @@ class DualArmExpert:
         self.grippers[arm] = self.CLOSED if closed else self.OPEN
         self.hold(.65)
 
-    def planner(self, arm, touch=()):
+    def planner(self, arm, touch=(), clearance=()):
         agent = self.agents[arm]
         planner = mplib.Planner(
             urdf=agent.urdf_path, srdf=str(Path(agent.urdf_path).with_suffix(".srdf")),
@@ -182,12 +183,13 @@ class DualArmExpert:
                 wrappers.extend(articulation.get_links())
         object_names = {}
         for obstacle_index, wrapper in enumerate(wrappers):
-            if wrapper is payload:
+            if wrapper is payload or any(wrapper is obj for obj in self.carried_contents[arm]):
                 continue
             if payload is self.base.station.lid and wrapper is self.base.station.knob:
                 continue  # Child knob travels with the lid; included in its payload bound below.
             # Single CPU scene: _bodies[0] is the underlying SAPIEN Physx component.
-            fcl = collision_object(wrapper._bodies[0], f"obstacle_{obstacle_index}_{wrapper.name}")
+            fcl = collision_object(wrapper._bodies[0], f"obstacle_{obstacle_index}_{wrapper.name}",
+                                   box_margin=.005 if any(wrapper is obj for obj in clearance) else 0.)
             if fcl is None:
                 continue
             fcl = mplib.collision_detection.fcl.FCLObject(
@@ -203,7 +205,7 @@ class DualArmExpert:
                     if link in planner.user_link_names:
                         planner.acm.set_entry(link, fcl.name, True)
         if payload is not None:
-            parts = [payload]
+            parts = [payload, *self.carried_contents[arm]]
             if payload is self.base.station.lid and self.base.station.knob is not None:
                 parts.append(self.base.station.knob)
             names = []
@@ -227,9 +229,9 @@ class DualArmExpert:
                             planner.acm.set_entry(name, object_names[id(obj)], True)
         return planner
 
-    def move(self, arm, pose, linear=False, touch=()):
+    def move(self, arm, pose, linear=False, touch=(), center_wrist=False, cartesian_after=(), clearance=(), preview_carried=()):
         print(f'move step={self.steps} arm={arm} linear={linear} xyz={pose.p.tolist()}', flush=True)
-        planner = self.planner(arm, touch)
+        planner = self.planner(arm, touch, clearance)
         planning_pose = sp(self.agents[arm].robot.pose).inv() * pose
         qpos = array(self.agents[arm].robot.get_qpos())[0]
         # PhysX linkage constraints can leave passive fingers microradians beyond
@@ -240,7 +242,7 @@ class DualArmExpert:
         if initial_collisions:
             print('initial collisions', [(c.link_name1, c.link_name2) for c in initial_collisions], flush=True)
         # Finger joints are not part of the arm move group. Keep them fixed in IK.
-        with planning_deadline():
+        with planning_deadline(60 if cartesian_after else 30):
             if linear:
                 result = cartesian_path(planner, mp(planning_pose), qpos, self.base.control_timestep)
             else:
@@ -254,6 +256,9 @@ class DualArmExpert:
                         candidate = goals[:, j]+2*np.pi*np.round((qpos[j]-goals[:, j])/(2*np.pi))
                         legal = (candidate >= planner.joint_limits[j, 0]) & (candidate <= planner.joint_limits[j, 1])
                         goals[:, j] = np.where(legal, candidate, goals[:, j])
+                    if center_wrist and 'wrist_3_joint' in planner.user_joint_names:
+                        j = planner.user_joint_names.index('wrist_3_joint')
+                        goals[:, j] = (goals[:, j]+np.pi) % (2*np.pi)-np.pi
                     # Keep the outward-facing UR shoulder/elbow branch through
                     # lid arcs; inverted branches fold back through the mast.
                     if 'elbow_joint' in planner.user_joint_names:
@@ -267,7 +272,45 @@ class DualArmExpert:
                             goals = positive
                         else:
                             status = 'IK has no stand-clear UR branch'
-                    goals = sorted(goals, key=lambda q: np.linalg.norm(q-qpos))[:3]
+                    goals = sorted(goals, key=lambda q: np.linalg.norm(q-qpos))
+                    if cartesian_after:
+                        # Preview robot reach after pickup without leaving the
+                        # picked objects frozen at their initial table poses.
+                        # Actual loaded moves still attach their full geometry.
+                        carried_names = [name for name in planner.planning_world.get_object_names()
+                            if any(name.endswith('_'+obj.name) for obj in preview_carried)]
+                        carried_objects = [planner.planning_world.get_object(name) for name in carried_names]
+                        def restore_preview_objects():
+                            for obj in carried_objects:
+                                if not planner.planning_world.has_object(obj.name):
+                                    planner.planning_world.add_object(obj)
+                        reachable = []
+                        rejected = {}
+                        for candidate in goals:
+                            restore_preview_objects()
+                            trial = candidate.copy()
+                            for waypoint_index, waypoint in enumerate(cartesian_after):
+                                if waypoint_index == 1:
+                                    for name in carried_names:
+                                        planner.planning_world.remove_object(name)
+                                preview = cartesian_path(planner,
+                                    mp(sp(self.agents[arm].robot.pose).inv()*waypoint),
+                                    trial, self.base.control_timestep)
+                                if preview['status'] != 'Success':
+                                    key = f"{waypoint_index}:{preview['status']}"
+                                    rejected[key] = rejected.get(key, 0)+1
+                                    break
+                                trial[planner.move_group_joint_indices] = preview['position'][-1]
+                            else:
+                                reachable.append(candidate)
+                                if len(reachable) == 3:
+                                    break
+                        restore_preview_objects()
+                        goals = reachable
+                        planner.planning_world.set_qpos_all(qpos[planner.move_group_joint_indices])
+                        if not goals:
+                            status = f'IK has no collision-free continuation: {rejected}'
+                    goals = goals[:3]
                 result = (planner.plan_qpos(goals, qpos,
                           time_step=self.base.control_timestep, planning_time=5.0)
                           if status == 'Success' else {'status': status})
@@ -304,9 +347,41 @@ class DualArmExpert:
                     print('tracking contact', [b.entity.name for b in contact.bodies], float(force), flush=True)
             raise PlanningFailure(f"arm{arm}: tracking_error_{error:.3f}m")
         payload = self.payloads[arm]
-        if payload is not None and payload is not self.base.station.lid:
+        lids = [self.base.station.lid]
+        if self.base.station.flash is not None:
+            lids.append(self.base.station.flash.lid)
+        if self.base.station.dryer is not None:
+            lids.append(self.base.station.dryer.lid)
+        if payload is not None and all(payload is not lid for lid in lids):
             if not bool(self.agents[arm].is_grasping(payload, min_force=.02).item()):
                 raise PlanningFailure(f"arm{arm}: grasp_lost")
+
+        return path[:, reorder].copy()
+
+    def retrace(self, arm, forward_path):
+        """Retrace an empty-arm approach after checking the changed scene."""
+        if self.payloads[arm] is not None:
+            raise PlanningFailure("retrace_requires_empty_gripper")
+        planner = self.planner(arm)
+        qpos = array(self.agents[arm].robot.get_qpos())[0]
+        previous = qpos[self.indices[arm]].copy()
+        reverse = np.asarray(forward_path)[::-1]
+        if np.max(np.abs(reverse[0]-previous)) > .12:
+            raise PlanningFailure("retrace_start_joint_mismatch")
+        for row in reverse:
+            count = max(1, math.ceil(np.max(np.abs(row-previous))/.012))
+            for alpha in np.linspace(0, 1, count+1)[1:]:
+                full = qpos.copy()
+                full[self.indices[arm]] = previous + alpha*(row-previous)
+                planner.robot.set_qpos(full, True)
+                if planner.planning_world.is_state_colliding():
+                    raise PlanningFailure("retrace_collision_in_updated_scene: " + str(
+                        [(c.link_name1,c.link_name2) for c in planner.planning_world.check_collision()]))
+            previous = row
+        for row in reverse:
+            self.targets[arm] = row.copy()
+            self.step()
+        self.hold(.2)
 
     def pick(self, name, arm=0):
         s = self.base.station
@@ -356,40 +431,45 @@ class DualArmExpert:
         if not self.base.close_to(obj, target):
             raise PlanningFailure(f"{name}: placement_outside_tolerance")
 
-    def release_lid(self):
+    def release_lid(self, instrument=None):
+        s = instrument or self.base.station
         arm = 1
-        self.grippers[arm] = .15 if self.base.task_name == 'centrifuge' else .4
+        self.grippers[arm] = .15 if self.base.task_name in ('centrifuge', 'spin_coating') else .4
         self.hold(.65)
         self.payloads[arm] = None
         self.payload_contacts[arm] = []
         current = sp(self.agents[arm].tcp.pose)
         outward = -current.to_transformation_matrix()[:3, 2]
-        if self.base.station.lid_angle > -.07:
+        if s.lid_angle > -.07:
             outward = np.array([0, 0, 1])
         self.move(arm, sapien.Pose(current.p + .08*outward, current.q), linear=True,
-                  touch=[self.base.station.lid])
+                  touch=[s.lid])
         self.hold(.35)
 
-    def operate_lid(self, opening):
-        s = self.base.station
+    def operate_lid(self, opening, instrument=None):
+        s = instrument or self.base.station
         arm = 1
         angle = s.lid_angle
         # Grasp the real handle and follow its hinge arc; no qpos setter here.
         handle = s.handle_pose(angle)
         # Front approach keeps the wrist in reach as the lid rotates upward.
         grasp = handle * sapien.Pose(q=[math.sqrt(.5), -math.sqrt(.5), 0, 0])
-        if s.task == 'centrifuge':
+        if s.task in ('centrifuge', 'spin_coating'):
             grasp = handle * sapien.Pose(q=[.5, -.5, -.5, -.5])
-        if not opening:
+        # Spin-coater closure preserves the opening handle frame to keep the
+        # forearm clear of the stand at the end of the hinge arc.
+        if not opening and s.task != 'spin_coating':
             grasp = downward(handle.p)
             if s.task == 'centrifuge':
                 grasp = sapien.Pose(handle.p, [0, math.sqrt(.5), -math.sqrt(.5), 0])
         approach = grasp.to_transformation_matrix()[:3, 2]
-        self.grippers[arm] = .15 if s.task == 'centrifuge' else .4
+        self.grippers[arm] = .15 if s.task in ('centrifuge', 'spin_coating') else .4
         self.hold(.4)
         if opening:
             self.move(arm, sapien.Pose(s.world([.35, -.31, 1.25]), grasp.q))
-        approach_distance = .12 if s.task == 'centrifuge' and not opening else .04
+        approach_distance = .04
+        if not opening and s.task in ('centrifuge', 'spin_coating'):
+            approach_distance = .08 if s.task == 'spin_coating' else .12
         self.move(arm, sapien.Pose(grasp.p - approach_distance*approach, grasp.q))
         self.move(arm, grasp, linear=True, touch=[s.lid])
         if not opening and s.lid_angle > -.07:
@@ -403,9 +483,13 @@ class DualArmExpert:
         self.payloads[arm] = s.lid
         self.payload_contacts[arm] = [s.machine.get_links()[0], *s.objects.values()]
         relative = handle.inv() * sp(self.agents[arm].tcp.pose)
-        for theta in np.linspace(angle, -1.63 if opening else -.005, 28)[1:]:
+        # The flash lid is already closed within 0.07 rad. Release just before
+        # the hard stop; gravity completes closure without winding wrist 1 past
+        # its limit on the rightmost instrument.
+        closing_angle = -.045 if s is self.base.station.flash else -.005
+        for theta in np.linspace(angle, -1.63 if opening else closing_angle, 28)[1:]:
             self.move(arm, s.handle_pose(float(theta)) * relative, linear=True)
-        self.release_lid()
+        self.release_lid(instrument=s)
         if opening and s.lid_angle > -1.25:
             raise PlanningFailure("lid_not_open")
         if not opening and s.lid_angle < -.07:
@@ -440,8 +524,8 @@ class DualArmExpert:
         if s.knob_angle < 1.4:
             raise PlanningFailure(f'knob_not_tightened_{s.knob_angle:.3f}')
 
-    def press_start(self):
-        s = self.base.station
+    def press_start(self, instrument=None):
+        s = instrument or self.base.station
         normal = s.button_normal
         rotation = np.eye(4)
         rotation[:3, :3] = (s.button_rotation if s.button_rotation is not None else np.eye(3)) @ np.diag([1, -1, -1])
@@ -453,17 +537,28 @@ class DualArmExpert:
         self.move(1, sapien.Pose(target.p + normal*.12, target.q))
         self.move(1, target, linear=True, touch=[s.button])
         self.hold(.3)
-        if not self.base.task_state.running:
+        state = self.base.task_state
+        started = (state.flash_running if s is self.base.station.flash else
+                   state.running or state.has_cleaned or state.has_spun)
+        if not started:
             raise PlanningFailure("start_button_or_interlock_failed")
         self.move(1, sapien.Pose(target.p + normal*.12, target.q), linear=True,
                   touch=[s.button])
-        self.hold(self.base.lab_config.run_seconds + .6)
+        seconds = (self.base.lab_config.flash_seconds if s is self.base.station.flash
+                   else self.base.lab_config.run_seconds)
+        self.hold(seconds + .6)
 
     def run(self):
         self.hold(.3)
         task = self.base.task_name
         s = self.base.station
-        if task == "mix_transfer":
+        if task == 'spin_coating':
+            from .spin_coating import run_spin_coating
+            run_spin_coating(self)
+        elif task == 'slide_cleaning':
+            from .slide_cleaning import run_cleaning
+            run_cleaning(self)
+        elif task == "mix_transfer":
             # Clear the target rack workspace before the left arm crosses the table.
             self.move(1, downward(s.world([.45, -.25, 1.20])))
             self.pick("sample")

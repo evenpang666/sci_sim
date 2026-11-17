@@ -9,7 +9,9 @@ import numpy as np
 
 from .config import CAMERAS, INSTRUCTIONS
 
-PHASES = ("approach", "grasp", "mix", "place", "open", "load", "close", "start", "run", "complete", "tighten")
+PHASES = ("approach", "grasp", "mix", "place", "open", "load", "close", "start", "run", "complete", "tighten",
+          "load_beaker", "load_cleaner", "clean", "return_beaker", "remove_rack", "aspirate", "dispense", "return_pipette", "stop_spin", "reopen_spin", "open_flash",
+          "transfer_flash", "close_flash", "flash_start", "flash_run", "open_dryer", "load_dryer", "close_dryer")
 
 
 def numpy(value):

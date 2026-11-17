@@ -16,7 +16,7 @@ for task, uid in TASK_IDS.items():
     image = registered.array(env.render())[0]
     iio.imwrite(output / f'{task}_stand.png', image)
     env.close()
-    for opened in (False, True) if task != 'mix_transfer' else (False,):
+    for opened in (False, True) if task in ('thermal_cycler', 'centrifuge') else (False,):
         env = gym.make(uid, lab_config={'width': 160, 'height': 120}, render_mode='rgb_array',
             human_render_camera_configs={'overview': {'width': 1000, 'height': 800,
                 'pose': sapien_utils.look_at([.14, -.55, 1.50], [0, .09, 1.0]), 'fov': 1.0}})

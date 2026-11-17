@@ -31,6 +31,7 @@ def main():
             phases.append({'phase': phase, 'step': expert.steps})
         if expert.steps % 4 == 0:
             snapshots.append({'step': expert.steps, 'phase': env.unwrapped.task_state.phase,
+                              'operation': getattr(expert, 'operation', ''),
                               'state': deepcopy(env.unwrapped.get_state_dict())})
     if args.trace:
         expert.record = capture
@@ -49,11 +50,18 @@ def main():
         result['objects'] = {k: _registered.xyz(v).tolist() for k, v in base.station.objects.items()}
         result['object_quaternions'] = {k: _registered.array(v.pose.q).tolist() for k, v in base.station.objects.items()}
         result['instrument_origin'] = base.station.instrument_point([0, 0, 0]).tolist()
-        if base.task_name != 'mix_transfer':
+        if base.station.lid is not None:
             result['lid_angle'] = base.station.lid_angle
             result['knob_angle'] = base.station.knob_angle
+        if base.station.flash is not None:
+            result['flash_lid_angle'] = base.station.flash.lid_angle
+            result['flash_origin'] = base.station.flash.instrument_point([0, 0, 0]).tolist()
+        if base.station.dryer is not None:
+            result['dryer_door_angle'] = base.station.dryer.lid_angle
+            result['dryer_origin'] = base.station.dryer.instrument_point([0, 0, 0]).tolist()
         args.output.parent.mkdir(parents=True, exist_ok=True)
         snapshots.append({'step': expert.steps, 'phase': base.task_state.phase,
+                          'operation': getattr(expert, 'operation', ''),
                           'state': deepcopy(base.get_state_dict())})
         with args.output.with_suffix('.pkl').open('wb') as f:
             pickle.dump({'task': args.task, 'seed': args.seed, 'frames': snapshots}, f)

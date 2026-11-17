@@ -14,13 +14,13 @@
   },
   "models": {
     "ur7e": {
-      "sha256": "1e8f744deea75b1af8e80f026b9687fdfdad2bbd414e5442a788180651109e0a",
+      "sha256": "0b2be7b7b1b28b16b480674f02c2d2db9b0d2dbfd733c1c820c5a54ef56a0e2a",
       "flange": "tool0",
       "tcp": "eef",
       "gripper": "Robotiq 2F-85"
     },
     "ur5e": {
-      "sha256": "1d1dcdd75f6bd2e916e06fbfcedf886af5b4c4cc99d1ae1609d18f1750a28249",
+      "sha256": "792f36882a454c477aedc4c8a2b8fec802701c87defbf91f7c7f06b1ca806967",
       "flange": "tool0",
       "tcp": "eef",
       "gripper": "Robotiq 2F-85"
@@ -32,7 +32,7 @@
       "gripper": "Robotiq 2F-85"
     },
     "franka": {
-      "sha256": "44b0df87288cf3614cbc0cf32b15d8ec5cc2a41154547efbedc8680b3865d54a",
+      "sha256": "9d07857fb92dc54aaf0843303f033227d549a9f40cb265086cbaa0f4a9da10a4",
       "flange": "panda_link8",
       "tcp": "eef",
       "gripper": "Robotiq 2F-85"
